@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>釜山四天三夜旅遊手冊</title>
+    
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Zen Maru Gothic (Rounded Font) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Tailwind Config for Morandi Colors -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'rounded': ['"Zen Maru Gothic"', 'sans-serif'],
+                    },
+                    colors: {
+                        morandi: {
+                            base: '#F5F5F0',       // Creamy White background
+                            dark: '#5E6C75',       // Dark Blue Grey (Text)
+                            blue: '#8CA6A8',       // Muted Blue
+                            green: '#A6B5A3',      // Sage Green
+                            pink: '#DBC4BF',       // Dusty Pink
+                            brown: '#C4B2A7',      // Muted Brown
+                            accent: '#E6D7D2',     // Light Accent
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background-color: #F5F5F0;
+            color: #5E6C75;
+        }
+        /* Hide scrollbar for clean look */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #F5F5F0; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #C4B2A7; 
+            border-radius: 10px;
+        }
+        .tab-active {
+            border-bottom: 3px solid #8CA6A8;
+            color: #5E6C75;
+            font-weight: bold;
+        }
+        .tab-inactive {
+            color: #A0A0A0;
+        }
+        /* Style for dragged item placeholder */
+        .drag-over {
+            border-top: 2px solid #8CA6A8;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body class="font-rounded h-screen overflow-hidden">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // --- Icons (SVG Components) ---
+        const IconCheck = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>;
+        const IconMap = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>;
+        const IconArrowUp = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>;
+        const IconArrowDown = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>;
+        const IconTrash = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+        const IconPlus = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>;
+        const IconPlane = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L2 22"></path><path d="M11 13L22 2"></path><path d="M22 2l-7 20-4-9-9-4 20-7z"></path></svg>;
+
+        // --- Data Definitions ---
+        const initialChecklist = {
+            "交通住宿+行前申請": [
+                { id: 1, text: "電子簽證 / 機上領入境卡", checked: false },
+                { id: 2, text: "網路卡 / ESIM", checked: false },
+                { id: 3, text: "各種支付綁定 (LINE PAY、街口等)", checked: false },
+                { id: 4, text: "旅平險", checked: false },
+                { id: 5, text: "住宿憑證", checked: false },
+                { id: 6, text: "來回機票", checked: false },
+            ],
+            "行李箱": [
+                { id: 7, text: "保養品", checked: false },
+                { id: 8, text: "個人藥物", checked: false },
+                { id: 9, text: "家鑰匙", checked: false },
+                { id: 10, text: "充電線", checked: false },
+                { id: 11, text: "雨傘", checked: false },
+                { id: 12, text: "洗面乳、卸妝", checked: false },
+                { id: 13, text: "梳子 + 髮型造型用品", checked: false },
+                { id: 14, text: "轉接頭 + 延長線", checked: false },
+                { id: 15, text: "化妝品", checked: false },
+                { id: 16, text: "衛生用品", checked: false },
+                { id: 17, text: "牙刷 + 牙膏", checked: false },
+                { id: 18, text: "4天3夜衣服", checked: false },
+            ],
+            "隨身包": [
+                { id: 19, text: "台幣", checked: false },
+                { id: 20, text: "耳機", checked: false },
+                { id: 21, text: "行動電源", checked: false },
+                { id: 22, text: "信用卡", checked: false },
+                { id: 23, text: "韓國交通卡 (T-Money)", checked: false },
+                { id: 24, text: "補妝用品", checked: false },
+                { id: 25, text: "韓幣", checked: false },
+                { id: 26, text: "個人證件 + 2吋照片", checked: false },
+                { id: 27, text: "護照、護照影本", checked: false },
+            ]
+        };
+
+        const initialItinerary = [
+            {
+                date: "12/18 (Day 1)",
+                items: [
+                    { id: 101, location: "金海機場 (凌晨飛機)" },
+                    { id: 102, location: "Marant 飯店" },
+                    { id: 103, location: "天空膠囊列車 (尾浦站)" },
+                    { id: 104, location: "青沙浦吃烤貝 & 逛青沙浦" },
+                    { id: 105, location: "海岸列車 (青沙浦往松亭)" },
+                    { id: 106, location: "釜山斜坡滑車 (Skyline Luge)" },
+                    { id: 107, location: "釜山紅磚校園 (樂高)" },
+                    { id: 108, location: "樂天世界冒險樂園" },
+                    { id: 109, location: "海岸列車 (松亭往尾浦)" }
+                ]
+            },
+            {
+                date: "12/19 (Day 2)",
+                items: [
+                    { id: 201, location: "新世界百貨 Spa Land (Centum City 站)" },
+                    { id: 202, location: "Club D Oasis (海雲台)" },
+                    { id: 203, location: "Yacht Holic" },
+                    { id: 204, location: "鑽石灣遊艇" }
+                ]
+            },
+            {
+                date: "12/20 (Day 3)",
+                items: [
+                    { id: 301, location: "釜山塔 (龍頭山公園)" },
+                    { id: 302, location: "ARTE MUSEUM BUSAN" },
+                    { id: 303, location: "南浦洞逛街" }
+                ]
+            },
+            {
+                date: "12/21 (Day 4)",
+                items: [
+                    { id: 401, location: "整理行李 Check-out" },
+                    { id: 402, location: "機場免稅店" },
+                    { id: 403, location: "搭機返台" }
+                ]
+            }
+        ];
+
+        // --- Components ---
+
+        const ChecklistTab = ({ data, setData }) => {
+            const toggleCheck = (category, id) => {
+                const newData = { ...data };
+                newData[category] = newData[category].map(item => 
+                    item.id === id ? { ...item, checked: !item.checked } : item
+                );
+                setData(newData);
+            };
+
+            const calculateProgress = () => {
+                let total = 0;
+                let checked = 0;
+                Object.values(data).forEach(list => {
+                    list.forEach(item => {
+                        total++;
+                        if (item.checked) checked++;
+                    });
+                });
+                return total === 0 ? 0 : Math.round((checked / total) * 100);
+            };
+
+            const progress = calculateProgress();
+
+            return (
+                <div className="space-y-6 pb-20">
+                    {/* Progress Bar */}
+                    <div className="bg-white p-4 rounded-3xl shadow-sm border border-morandi-accent">
+                        <div className="flex justify-between mb-2 text-sm text-morandi-dark font-bold">
+                            <span>準備進度</span>
+                            <span>{progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2.5">
+                            <div className="bg-morandi-blue h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }}></div>
+                        </div>
+                    </div>
+
+                    {Object.keys(data).map((category) => (
+                        <div key={category} className="bg-white rounded-3xl p-5 shadow-sm border border-morandi-accent">
+                            <h3 className="text-xl font-bold mb-4 text-morandi-blue flex items-center">
+                                <span className="w-2 h-6 bg-morandi-pink rounded-full mr-3"></span>
+                                {category}
+                            </h3>
+                            <div className="space-y-3">
+                                {data[category].map((item) => (
+                                    <label key={item.id} className="flex items-center space-x-3 cursor-pointer group">
+                                        <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${item.checked ? 'bg-morandi-green border-morandi-green' : 'border-gray-300 group-hover:border-morandi-green'}`}>
+                                            {item.checked && <span className="text-white"><IconCheck /></span>}
+                                        </div>
+                                        <input 
+                                            type="checkbox" 
+                                            className="hidden" 
+                                            checked={item.checked} 
+                                            onChange={() => toggleCheck(category, item.id)} 
+                                        />
+                                        <span className={`text-lg transition-all ${item.checked ? 'text-gray-400 line-through' : 'text-morandi-dark'}`}>
+                                            {item.text}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const ItineraryTab = ({ itinerary, setItinerary }) => {
+            const [draggedItem, setDraggedItem] = useState(null);
+
+            // 處理行程地點更新
+            const updateLocation = (dayIndex, itemIndex, newLocation) => {
+                const newItinerary = [...itinerary];
+                newItinerary[dayIndex].items[itemIndex].location = newLocation; 
+                setItinerary(newItinerary);
+            };
+
+            // 新增行程項目 (使用時間戳記作為簡易 ID)
+            const addItem = (dayIndex) => {
+                const newItinerary = [...itinerary];
+                newItinerary[dayIndex].items.push({ 
+                    id: Date.now(), // 簡易唯一 ID
+                    location: "", 
+                });
+                setItinerary(newItinerary);
+            };
+
+            // 刪除行程項目
+            const deleteItem = (dayIndex, itemIndex) => {
+                const newItinerary = [...itinerary];
+                newItinerary[dayIndex].items.splice(itemIndex, 1);
+                setItinerary(newItinerary);
+            };
+
+            // 產生 Google 地圖連結
+            const getMapLink = (query) => {
+                if (!query) return "#";
+                // 加上 '釜山' 提高搜尋精確度
+                return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent("釜山 " + query)}`;
+            };
+            
+            // --- 使用按鈕移動項目 (適用於手機/觸控) ---
+            const moveItem = (dayIndex, itemIndex, direction) => {
+                const newItinerary = [...itinerary];
+                const dayItems = newItinerary[dayIndex].items;
+                
+                let targetIndex = itemIndex + direction; // direction is -1 for up, +1 for down
+
+                if (targetIndex < 0 || targetIndex >= dayItems.length) {
+                    return; // Cannot move past boundaries
+                }
+
+                // Standard array swap
+                [dayItems[itemIndex], dayItems[targetIndex]] = [dayItems[targetIndex], dayItems[itemIndex]];
+                
+                setItinerary(newItinerary);
+            };
+
+            // --- 拖曳排序邏輯 (Drag and Drop - 桌面/滑鼠) ---
+            const handleDragStart = (e, dayIndex, itemIndex) => {
+                setDraggedItem({ dayIndex, itemIndex });
+                e.dataTransfer.effectAllowed = "move";
+            };
+
+            const handleDragEnter = (targetDayIndex, targetItemIndex) => {
+                if (!draggedItem) return;
+
+                const { dayIndex: sourceDayIndex, itemIndex: sourceItemIndex } = draggedItem;
+
+                // 限制在同一天內移動
+                if (sourceDayIndex !== targetDayIndex || sourceItemIndex === targetItemIndex) {
+                    return;
+                }
+
+                const newItinerary = [...itinerary];
+                const dayItems = newItinerary[sourceDayIndex].items;
+
+                // 1. 移除被拖曳的項目
+                const [movedItem] = dayItems.splice(sourceItemIndex, 1);
+                
+                // 2. 插入到新的目標位置
+                dayItems.splice(targetItemIndex, 0, movedItem);
+
+                // 更新被拖曳項目的索引 (這樣下次 dragEnter 才會基於新的位置計算)
+                setDraggedItem({ dayIndex: sourceDayIndex, itemIndex: targetItemIndex });
+                
+                setItinerary(newItinerary);
+            };
+
+            const handleDragOver = (e) => {
+                e.preventDefault(); // 允許放下
+            };
+
+            const handleDrop = (e) => {
+                e.preventDefault();
+                setDraggedItem(null); // 重設狀態
+            };
+
+            const isDragging = (dayIndex, itemIndex) => 
+                draggedItem && draggedItem.dayIndex === dayIndex && draggedItem.itemIndex === itemIndex;
+
+
+            return (
+                <div className="space-y-6 pb-20" onDrop={handleDrop} onDragOver={handleDragOver}>
+                    {itinerary.map((day, dayIndex) => (
+                        <div key={dayIndex} className="bg-white rounded-3xl overflow-hidden shadow-sm border border-morandi-accent">
+                            <div className="bg-morandi-pink/30 p-4 border-b border-morandi-pink/50">
+                                <h3 className="text-xl font-bold text-morandi-dark">{day.date}</h3>
+                            </div>
+                            <div className="p-4 space-y-4">
+                                {day.items.map((item, itemIndex) => (
+                                    <div 
+                                        key={item.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, dayIndex, itemIndex)}
+                                        onDragEnter={() => handleDragEnter(dayIndex, itemIndex)}
+                                        className={`flex flex-col space-y-2 group transition-opacity ${isDragging(dayIndex, itemIndex) ? 'opacity-30' : 'opacity-100'}`}
+                                    >
+                                        <div className="flex items-center space-x-2 w-full">
+                                            
+                                            {/* 1. 移動按鈕組 (左側) */}
+                                            <div className="flex flex-col space-y-1 cursor-move text-gray-400 p-1 flex-shrink-0" title="移動排序">
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); moveItem(dayIndex, itemIndex, -1); }}
+                                                    disabled={itemIndex === 0}
+                                                    className={`hover:text-morandi-blue disabled:opacity-30 p-0.5 rounded transition-colors`}
+                                                >
+                                                    <IconArrowUp />
+                                                </button>
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); moveItem(dayIndex, itemIndex, 1); }}
+                                                    disabled={itemIndex === day.items.length - 1}
+                                                    className={`hover:text-morandi-blue disabled:opacity-30 p-0.5 rounded transition-colors`}
+                                                >
+                                                    <IconArrowDown />
+                                                </button>
+                                            </div>
+                                            
+                                            {/* 2. 地點輸入 (中間, 佔滿剩餘空間) */}
+                                            <input 
+                                                type="text" 
+                                                value={item.location}
+                                                placeholder="輸入地點/行程名稱 (例如：海東龍宮寺)"
+                                                onChange={(e) => updateLocation(dayIndex, itemIndex, e.target.value)}
+                                                className="flex-1 bg-transparent border-b border-transparent focus:border-morandi-blue outline-none text-morandi-dark text-lg py-1 transition-colors hover:border-gray-200 min-w-0"
+                                            />
+                                            
+                                            {/* 3. 功能按鈕組 (右側) */}
+                                            <div className="flex items-center space-x-1.5 flex-shrink-0">
+                                                {/* 地圖連結按鈕 */}
+                                                <a 
+                                                    href={getMapLink(item.location)} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer"
+                                                    className={`p-2 rounded-full bg-morandi-base text-morandi-blue hover:bg-morandi-blue hover:text-white transition-colors flex-shrink-0 ${!item.location ? 'opacity-50 pointer-events-none' : ''}`}
+                                                    title="在 Google 地圖開啟"
+                                                >
+                                                    <IconMap />
+                                                </a>
+                                                
+                                                {/* 刪除按鈕 */}
+                                                <button 
+                                                    onClick={() => deleteItem(dayIndex, itemIndex)}
+                                                    className="p-2 text-gray-300 hover:text-red-400 transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                                                    title="刪除此項目"
+                                                >
+                                                    <IconTrash />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                                <button 
+                                    onClick={() => addItem(dayIndex)}
+                                    className="w-full py-2 border-2 border-dashed border-morandi-blue/30 text-morandi-blue rounded-xl flex items-center justify-center hover:bg-morandi-blue/5 transition-colors mt-4"
+                                >
+                                    <IconPlus /> <span className="ml-2">新增行程</span>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            );
+        };
+
+        const CalculatorTab = () => {
+            // 匯率狀態，預設為 42
+            const [rate, setRate] = useState(42); 
+            const [krw, setKrw] = useState("");
+            
+            // 公式：台幣 = 韓幣 / 匯率 (rate)
+            const twd = krw && rate > 0 ? Math.round(parseFloat(krw) / parseFloat(rate)) : 0;
+
+            return (
+                <div className="flex flex-col h-full justify-center">
+                     <div className="bg-white rounded-3xl p-8 shadow-sm border border-morandi-accent text-center space-y-8">
+                        <h2 className="text-2xl font-bold text-morandi-dark mb-4">商品計算機</h2>
+                        
+                        {/* 匯率設定 (可編輯) */}
+                        <div className="flex items-center justify-center space-x-4 bg-morandi-base p-4 rounded-2xl border border-morandi-brown/50">
+                            <label className="text-sm font-bold text-morandi-dark/70 whitespace-nowrap">匯率 (除以)</label>
+                            <input 
+                                type="number" 
+                                step="0.1"
+                                value={rate}
+                                onChange={(e) => setRate(e.target.value)}
+                                placeholder="輸入匯率"
+                                className="w-24 text-center bg-white border border-morandi-blue rounded-lg p-1 text-morandi-dark font-bold focus:outline-none focus:ring-2 focus:ring-morandi-blue/50 transition-shadow"
+                            />
+                        </div>
+
+                        {/* 韓幣輸入區 */}
+                        <div className="space-y-2">
+                            <label className="block text-morandi-blue font-bold text-lg">韓幣金額 (₩)</label>
+                            <input 
+                                type="number" 
+                                value={krw}
+                                onChange={(e) => setKrw(e.target.value)}
+                                placeholder="輸入金額"
+                                className="w-full text-center text-4xl font-bold text-morandi-dark bg-transparent border-b-2 border-morandi-pink focus:border-morandi-blue outline-none py-2 placeholder-gray-200"
+                            />
+                        </div>
+
+                        {/* 台幣結果區 */}
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-center">
+                                <span className="text-3xl text-gray-300">⬇</span>
+                            </div>
+                            <label className="block text-morandi-green font-bold text-lg">約台幣 (NT$)</label>
+                            <div className="text-5xl font-bold text-morandi-green">
+                                ${twd.toLocaleString()}
+                            </div>
+                        </div>
+                        
+                        {/* 顯示當前匯率公式 */}
+                        <p className="text-xs text-gray-400 mt-4">* 公式：韓幣 / {rate} = 台幣</p>
+                    </div>
+                    
+                    <div className="mt-8 text-center opacity-50">
+                        <img src="https://cdn-icons-png.flaticon.com/512/330/330430.png" alt="Calculator" className="w-32 h-32 mx-auto grayscale opacity-50 mix-blend-multiply" />
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('itinerary'); // 預設打開行程頁籤
+            const [checklistData, setChecklistData] = useState(initialChecklist);
+            const [itineraryData, setItineraryData] = useState(initialItinerary);
+
+            // Simple persistence (using localStorage for this simple example)
+            useEffect(() => {
+                const savedChecklist = localStorage.getItem('busan_checklist');
+                if (savedChecklist) setChecklistData(JSON.parse(savedChecklist));
+                
+                const savedItinerary = localStorage.getItem('busan_itinerary');
+                if (savedItinerary) setItineraryData(JSON.parse(savedItinerary));
+            }, []);
+
+            useEffect(() => {
+                localStorage.setItem('busan_checklist', JSON.stringify(checklistData));
+            }, [checklistData]);
+
+            useEffect(() => {
+                localStorage.setItem('busan_itinerary', JSON.stringify(itineraryData));
+            }, [itineraryData]);
+
+            return (
+                <div className="max-w-md mx-auto h-screen flex flex-col bg-morandi-base shadow-2xl overflow-hidden relative">
+                    
+                    {/* Header */}
+                    <header className="bg-white p-6 pt-8 pb-4 rounded-b-[2.5rem] shadow-sm z-10 flex items-center justify-between">
+                        <div>
+                            <h1 className="text-2xl font-bold text-morandi-dark flex items-center">
+                                <span className="mr-2">🇰🇷</span> 釜山 Busan
+                            </h1>
+                            <p className="text-morandi-blue text-sm mt-1 font-medium">12/18 - 12/21 (4天3夜)</p>
+                        </div>
+                        <div className="w-12 h-12 bg-morandi-pink/20 rounded-full flex items-center justify-center text-morandi-pink">
+                            <IconPlane />
+                        </div>
+                    </header>
+
+                    {/* Main Content */}
+                    <main className="flex-1 overflow-y-auto p-5 scroll-smooth">
+                        {activeTab === 'checklist' && <ChecklistTab data={checklistData} setData={setChecklistData} />}
+                        {activeTab === 'itinerary' && <ItineraryTab itinerary={itineraryData} setItinerary={setItineraryData} />}
+                        {activeTab === 'calculator' && <CalculatorTab />}
+                    </main>
+
+                    {/* Navigation Bar */}
+                    <nav className="bg-white border-t border-gray-100 pb-safe pt-2 px-6 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] z-20">
+                        <div className="flex justify-between items-center h-16">
+                            <button 
+                                onClick={() => setActiveTab('checklist')}
+                                className={`flex flex-col items-center justify-center w-1/3 transition-all ${activeTab === 'checklist' ? 'text-morandi-blue scale-110' : 'text-gray-300'}`}
+                            >
+                                <div className="mb-1"><IconCheck /></div>
+                                <span className="text-xs font-bold">行前準備</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('itinerary')}
+                                className={`flex flex-col items-center justify-center w-1/3 transition-all ${activeTab === 'itinerary' ? 'text-morandi-blue scale-110' : 'text-gray-300'}`}
+                            >
+                                <div className="mb-1"><IconMap /></div>
+                                <span className="text-xs font-bold">行程安排</span>
+                            </button>
+                            
+                            <button 
+                                onClick={() => setActiveTab('calculator')}
+                                className={`flex flex-col items-center justify-center w-1/3 transition-all ${activeTab === 'calculator' ? 'text-morandi-blue scale-110' : 'text-gray-300'}`}
+                            >
+                                <div className="mb-1 text-lg font-serif">₩</div>
+                                <span className="text-xs font-bold">費用計算</span>
+                            </button>
+                        </div>
+                    </nav>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+    <style>
+        /* iOS Safe Area fix */
+        .pb-safe {
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+    </style>
+</body>
+</html>
